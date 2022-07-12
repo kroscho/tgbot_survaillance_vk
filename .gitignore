@@ -1,0 +1,10 @@
+/bin
+/.build
+/.netrc
+.tmp
+/.env
+/.tmp/air_errors.log
+*.json
+*.drawio
+*.txt
+*.env
