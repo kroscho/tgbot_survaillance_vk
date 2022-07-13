@@ -24,6 +24,7 @@ type store struct {
 	tableUserTracked string
 	tableTracked     string
 	tablePrevFriends string
+	tableUsers       string
 }
 
 // nolint:golint
@@ -35,6 +36,7 @@ func NewStore(db psql.DB, clock clock.Clock) *store {
 		tableUserTracked: "usertracked",
 		tableTracked:     "trackeds",
 		tablePrevFriends: "prevfriends",
+		tableUsers:       "users",
 	}
 }
 
@@ -46,7 +48,7 @@ func (s *store) DB(ctx context.Context) psql.DB {
 
 func (s store) Get(ctx context.Context, user *user.User) ([]*trackedsvc.TrackedInfo, error) {
 
-	builder := s.sqlBuilder.Select("id_tracked", "vk_id").
+	builder := s.sqlBuilder.Select("id_tracked", "vk_id", "first_name", "last_name").
 		From(s.tableUserTracked + " as ut").
 		InnerJoin(s.tableTracked + " as t on ut.tracked_id = t.id_tracked").
 		Where(sq.Eq{"user_id": user.ID})
@@ -71,26 +73,60 @@ func (s store) Get(ctx context.Context, user *user.User) ([]*trackedsvc.TrackedI
 		if err != nil {
 			return nil, errors.Wrap(err, "marshal")
 		}
-
-		apiVk, _ := govk.NewApiClient(*user.Token)
-		params := govk.UserGetParams{
-			UserIDS: int64(tt.VkID),
-			Fields:  "id, first_name, last_name",
-		}
-		res, err := apiVk.UserGet(params)
-		if err != nil {
-			return nil, errors.Wrap(err, "api vk")
-		}
-		dd.UserVK.FirstName = res.FirstName
-		dd.UserVK.LastName = res.LastName
+		/*
+			apiVk, _ := govk.NewApiClient(*user.Token)
+			params := govk.UserGetParams{
+				UserIDS: int64(tt.VkID),
+				Fields:  "id, first_name, last_name",
+			}
+			res, err := apiVk.UserGet(params)
+			if err != nil {
+				return nil, errors.Wrap(err, "api vk")
+			}
+			dd.UserVK.FirstName = res.FirstName
+			dd.UserVK.LastName = res.LastName
+		*/
 		result = append(result, dd)
+	}
+	return result, nil
+}
+
+func (s store) GetTrackeds(ctx context.Context) (map[trackedsvc.VkID][]*trackedsvc.UserTrackedInfo, error) {
+
+	builder := s.sqlBuilder.Select("id_tracked", "tg_id", "t.vk_id", "first_name", "last_name").
+		From(s.tableUserTracked + " as ut").
+		InnerJoin(s.tableUsers + " as u on ut.user_id = u.id_user").
+		InnerJoin(s.tableTracked + " as t on ut.tracked_id = t.id_tracked")
+
+	query, args, err := builder.ToSql()
+	if err != nil {
+		return nil, errors.Wrap(err, "build query")
+	}
+
+	var trackeds []*userTrackedInfo
+	err = s.db.SelectContext(ctx, &trackeds, query, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "select disputes")
+	}
+
+	if len(trackeds) == 0 {
+		return nil, nil
+	}
+	result := make(map[trackedsvc.VkID][]*trackedsvc.UserTrackedInfo)
+	for _, tt := range trackeds {
+		dd, err := tt.marshal()
+		if err != nil {
+			return nil, errors.Wrap(err, "marshal")
+		}
+
+		result[dd.VkID] = append(result[dd.VkID], dd)
 	}
 	return result, nil
 }
 
 func (s store) GetTrackedByVkID(ctx context.Context, user *user.User, vkId int64) (*trackedsvc.TrackedInfo, error) {
 
-	builder := s.sqlBuilder.Select("id_tracked", "vk_id").
+	builder := s.sqlBuilder.Select("id_tracked", "vk_id", "first_name", "last_name").
 		From(s.tableTracked).
 		Where(sq.Eq{"vk_id": vkId})
 
@@ -115,19 +151,19 @@ func (s store) GetTrackedByVkID(ctx context.Context, user *user.User, vkId int64
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal")
 	}
-
-	apiVk, _ := govk.NewApiClient(*user.Token)
-	params := govk.UserGetParams{
-		UserIDS: int64(tr.VkID),
-		Fields:  "id, first_name, last_name",
-	}
-	res, err := apiVk.UserGet(params)
-	if err != nil {
-		return nil, errors.Wrap(err, "api vk")
-	}
-	result.UserVK.FirstName = res.FirstName
-	result.UserVK.LastName = res.LastName
-
+	/*
+		apiVk, _ := govk.NewApiClient(*user.Token)
+		params := govk.UserGetParams{
+			UserIDS: int64(tr.VkID),
+			Fields:  "id, first_name, last_name",
+		}
+		res, err := apiVk.UserGet(params)
+		if err != nil {
+			return nil, errors.Wrap(err, "api vk")
+		}
+		result.UserVK.FirstName = res.FirstName
+		result.UserVK.LastName = res.LastName
+	*/
 	return result, nil
 }
 
@@ -145,7 +181,9 @@ func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels
 	}
 	if !isExist {
 		fromTracked := trackedsvc.Tracked{
-			VkID: trackedsvc.VkID(trackedAdd.UID),
+			VkID:      trackedsvc.VkID(trackedAdd.UID),
+			FirstName: trackedAdd.FirstName,
+			LastName:  trackedAdd.LastName,
 		}
 
 		var tr tracked

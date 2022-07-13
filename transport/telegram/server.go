@@ -3,10 +3,12 @@ package telegram
 import (
 	"context"
 	"sync"
+	"tgbot_surveillance/config"
 	"tgbot_surveillance/internal/domain/tracked"
 	trackedsvc "tgbot_surveillance/internal/domain/tracked"
 	"tgbot_surveillance/internal/domain/user"
 	"tgbot_surveillance/internal/domain/userVk"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -64,7 +66,7 @@ func NewServer(tg *tgbotapi.BotAPI, logger logrus.FieldLogger, services Services
 	}
 }
 
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 	s.logger.Info("Start application...")
 	defer s.logger.Warnln("Stop application")
 
@@ -74,6 +76,13 @@ func (s *Server) Run(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "get updates chan")
 	}
+
+	go func() {
+		for {
+			s.runNotifications()
+			time.Sleep(time.Duration(cfg.NotificationDuration) * time.Minute)
+		}
+	}()
 
 	doneC := make(chan struct{})
 	go func() {

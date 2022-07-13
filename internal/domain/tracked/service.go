@@ -15,6 +15,7 @@ type Service interface {
 	DeleteUserFromPrevFriends(ctx context.Context, deleteUser *vkmodels.User, tracked *TrackedInfo) error
 	AddUserInPrevFriends(ctx context.Context, addUser *vkmodels.User, tracked *TrackedInfo) error
 	DeleteUserFromTracked(ctx context.Context, user *user.User, tracked *TrackedInfo) error
+	GetTrackeds(ctx context.Context) (map[VkID][]*UserTrackedInfo, error)
 }
 
 type service struct {
@@ -56,4 +57,8 @@ func (s service) AddUserInPrevFriends(ctx context.Context, addUser *vkmodels.Use
 
 func (s service) DeleteUserFromTracked(ctx context.Context, user *user.User, tracked *TrackedInfo) error {
 	return s.store.DeleteUserFromTracked(ctx, user, tracked)
+}
+
+func (s service) GetTrackeds(ctx context.Context) (map[VkID][]*UserTrackedInfo, error) {
+	return s.store.GetTrackeds(ctx)
 }

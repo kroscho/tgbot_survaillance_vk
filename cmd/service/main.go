@@ -80,7 +80,7 @@ func run(logger logrus.FieldLogger) error {
 	}
 
 	server := telegram.NewServer(bot, logger, services)
-	err = server.Run(ctx)
+	err = server.Run(ctx, cfg)
 	if err != nil {
 		logger.Fatal(err)
 	}

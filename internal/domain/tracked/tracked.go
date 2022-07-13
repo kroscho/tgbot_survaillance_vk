@@ -13,14 +13,24 @@ type ID_TRACKED_PERSON int64
 type VkID int64
 
 type Tracked struct {
-	ID   ID
-	VkID VkID
+	ID        ID
+	VkID      VkID
+	FirstName string
+	LastName  string
 }
 
 type UserTracked struct {
 	ID              ID
 	UserID          user.ID
 	TrackedPersonID ID_TRACKED_PERSON
+}
+
+type UserTrackedInfo struct {
+	ID        ID
+	TgID      ID
+	VkID      VkID
+	FirstName string
+	LastName  string
 }
 
 type TrackedInfo struct {

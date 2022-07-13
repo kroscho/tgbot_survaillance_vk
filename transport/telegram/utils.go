@@ -3,6 +3,7 @@ package telegram
 import (
 	"context"
 	"strings"
+	"tgbot_surveillance/internal/domain/tracked"
 	"tgbot_surveillance/internal/domain/user"
 	govk "tgbot_surveillance/pkg/go-vk"
 	vkmodels "tgbot_surveillance/pkg/go-vk/models"
@@ -26,7 +27,7 @@ func CutAccessTokenAndUserId(str string) (string, string) {
 }
 
 // выявить новых друзей на основе прежнего и нового списка друзей
-func (s Server) checkDeletedAndNewFriends(user *user.User, newListFriends map[int64]vkmodels.User, prevListFriends []int64, id_tp int) (map[int64]vkmodels.User, map[int64]vkmodels.User, error) {
+func (s Server) checkDeletedAndNewFriends(user *user.User, newListFriends map[int64]vkmodels.User, prevListFriends []int64, tracked *tracked.TrackedInfo) (map[int64]vkmodels.User, map[int64]vkmodels.User, error) {
 	addedFriendsIds := make(map[int64]vkmodels.User)
 	deletedFriendsIds := make(map[int64]vkmodels.User)
 	i := 0
@@ -47,7 +48,7 @@ func (s Server) checkDeletedAndNewFriends(user *user.User, newListFriends map[in
 				}
 				if friend != nil {
 					deletedFriendsIds[int64(friend.UID)] = *friend
-					err = s.services.TrackedService.DeleteUserFromPrevFriends(context.Background(), friend, s.curTracked)
+					err = s.services.TrackedService.DeleteUserFromPrevFriends(context.Background(), friend, tracked)
 					if err != nil {
 						return addedFriendsIds, deletedFriendsIds, errors.Wrap(err, "delete friend")
 					}
@@ -57,7 +58,7 @@ func (s Server) checkDeletedAndNewFriends(user *user.User, newListFriends map[in
 		}
 		if !isDeleted && !CheckExistInList(key, prevListFriends) {
 			addedFriendsIds[key] = val
-			err := s.services.TrackedService.AddUserInPrevFriends(context.Background(), &val, s.curTracked)
+			err := s.services.TrackedService.AddUserInPrevFriends(context.Background(), &val, tracked)
 			if err != nil {
 				return addedFriendsIds, deletedFriendsIds, errors.Wrap(err, "added friend")
 			}

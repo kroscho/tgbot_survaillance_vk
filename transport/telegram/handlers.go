@@ -510,7 +510,7 @@ func (s *Server) getNewInfoAboutFriendsButton(usr *user.User, msg *tgbotapi.Mess
 		return errors.Wrap(err, "get prev")
 	}
 
-	addedFriends, deletedFriends, err := s.checkDeletedAndNewFriends(usr, newListFriends, prevListFriends, 1)
+	addedFriends, deletedFriends, err := s.checkDeletedAndNewFriends(usr, newListFriends, prevListFriends, s.curTracked)
 	if err != nil {
 		return errors.Wrap(err, "message, check lists friends")
 	}

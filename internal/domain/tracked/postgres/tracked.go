@@ -12,8 +12,10 @@ type userTracked struct {
 }
 
 type tracked struct {
-	ID   trackedsvc.ID   `db:"id_tracked"`
-	VkID trackedsvc.VkID `db:"vk_id"`
+	ID        trackedsvc.ID   `db:"id_tracked"`
+	VkID      trackedsvc.VkID `db:"vk_id"`
+	FirstName string          `db:"first_name"`
+	LastName  string          `db:"last_name"`
 }
 
 type prevFriends struct {
@@ -24,6 +26,14 @@ type prevFriends struct {
 
 type trackedInfo struct {
 	ID        trackedsvc.ID   `db:"id_tracked"`
+	VkID      trackedsvc.VkID `db:"vk_id"`
+	FirstName string          `db:"first_name"`
+	LastName  string          `db:"last_name"`
+}
+
+type userTrackedInfo struct {
+	ID        trackedsvc.ID   `db:"id_tracked"`
+	TgID      trackedsvc.ID   `db:"tg_id"`
 	VkID      trackedsvc.VkID `db:"vk_id"`
 	FirstName string          `db:"first_name"`
 	LastName  string          `db:"last_name"`
@@ -47,15 +57,19 @@ func (t *userTracked) unmarshal(from *trackedsvc.UserTracked) {
 
 func (t tracked) marshal() (*trackedsvc.Tracked, error) {
 	return &trackedsvc.Tracked{
-		ID:   trackedsvc.ID(t.ID),
-		VkID: trackedsvc.VkID(t.VkID),
+		ID:        trackedsvc.ID(t.ID),
+		VkID:      trackedsvc.VkID(t.VkID),
+		FirstName: t.FirstName,
+		LastName:  t.LastName,
 	}, nil
 }
 
 func (t *tracked) unmarshal(from *trackedsvc.Tracked) {
 	*t = tracked{
-		ID:   trackedsvc.ID(from.ID),
-		VkID: trackedsvc.VkID(from.VkID),
+		ID:        trackedsvc.ID(from.ID),
+		VkID:      trackedsvc.VkID(from.VkID),
+		FirstName: from.FirstName,
+		LastName:  from.LastName,
 	}
 }
 
@@ -77,6 +91,26 @@ func (t *trackedInfo) unmarshal(from *trackedsvc.TrackedInfo) {
 		VkID:      trackedsvc.VkID(from.UserVK.UID),
 		FirstName: string(from.UserVK.FirstName),
 		LastName:  string(from.UserVK.LastName),
+	}
+}
+
+func (t userTrackedInfo) marshal() (*trackedsvc.UserTrackedInfo, error) {
+	return &trackedsvc.UserTrackedInfo{
+		ID:        t.ID,
+		TgID:      trackedsvc.ID(t.TgID),
+		VkID:      trackedsvc.VkID(t.VkID),
+		FirstName: t.FirstName,
+		LastName:  t.LastName,
+	}, nil
+}
+
+func (t *userTrackedInfo) unmarshal(from *trackedsvc.UserTrackedInfo) {
+	*t = userTrackedInfo{
+		ID:        from.ID,
+		TgID:      trackedsvc.ID(from.TgID),
+		VkID:      trackedsvc.VkID(from.VkID),
+		FirstName: string(from.FirstName),
+		LastName:  string(from.LastName),
 	}
 }
 
