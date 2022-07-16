@@ -10,6 +10,7 @@ import (
 
 const (
 	startButton                   = "Начать"
+	infoAboutBot                  = "Что делает бот?"
 	surveillanceButton            = "Слежка"
 	mySubscriptionButton          = "Подписка"
 	contactsButton                = "Помощь"
@@ -49,6 +50,9 @@ var (
 			tgbotapi.NewKeyboardButton(mySubscriptionButton),
 			tgbotapi.NewKeyboardButton(contactsButton),
 		),
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(infoAboutBot),
+		),
 	)
 
 	getTokenVkKeyboard = tgbotapi.NewReplyKeyboard(
@@ -80,7 +84,7 @@ var (
 
 	trackedKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
-			tgbotapi.NewKeyboardButton(getNewInfoAboutFriendsButton),
+			//tgbotapi.NewKeyboardButton(getNewInfoAboutFriendsButton),
 			tgbotapi.NewKeyboardButton(getHistoryAboutFriends),
 		),
 		tgbotapi.NewKeyboardButtonRow(
@@ -107,12 +111,18 @@ func (s *Server) getMainKeyboard(isToken bool) (*tgbotapi.ReplyKeyboardMarkup, e
 				tgbotapi.NewKeyboardButton(survaillanceButton),
 				tgbotapi.NewKeyboardButton(contactsButton),
 			),
+			tgbotapi.NewKeyboardButtonRow(
+				tgbotapi.NewKeyboardButton(infoAboutBot),
+			),
 		)
 	} else {
 		keyboard = tgbotapi.NewReplyKeyboard(
 			tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.NewKeyboardButton(getTokenVkButton),
 				tgbotapi.NewKeyboardButton(contactsButton),
+			),
+			tgbotapi.NewKeyboardButtonRow(
+				tgbotapi.NewKeyboardButton(infoAboutBot),
 			),
 		)
 	}
@@ -127,6 +137,8 @@ func (s *Server) getSurvaillanceKeyboard(trackeds []*tracked.TrackedInfo) (*tgbo
 	listButtons1 := []tgbotapi.InlineKeyboardButton{}
 	listButtons2 := []tgbotapi.InlineKeyboardButton{}
 	listButtons3 := []tgbotapi.InlineKeyboardButton{}
+	listButtons4 := []tgbotapi.InlineKeyboardButton{}
+	listButtons5 := []tgbotapi.InlineKeyboardButton{}
 	i := 1
 	for _, user := range trackeds {
 		nameFriend := user.UserVK.FirstName + " " + user.UserVK.LastName
@@ -137,6 +149,10 @@ func (s *Server) getSurvaillanceKeyboard(trackeds []*tracked.TrackedInfo) (*tgbo
 			listButtons2 = append(listButtons2, tgbotapi.NewInlineKeyboardButtonData(nameFriend, data))
 		} else if i > 4 && i <= 6 {
 			listButtons3 = append(listButtons3, tgbotapi.NewInlineKeyboardButtonData(nameFriend, data))
+		} else if i > 6 && i <= 8 {
+			listButtons4 = append(listButtons4, tgbotapi.NewInlineKeyboardButtonData(nameFriend, data))
+		} else if i > 8 && i <= 10 {
+			listButtons5 = append(listButtons5, tgbotapi.NewInlineKeyboardButtonData(nameFriend, data))
 		}
 		i += 1
 	}
@@ -146,6 +162,8 @@ func (s *Server) getSurvaillanceKeyboard(trackeds []*tracked.TrackedInfo) (*tgbo
 			listButtons1[:],
 			listButtons2[:],
 			listButtons3[:],
+			listButtons4[:],
+			listButtons5[:],
 		)
 		keyboard = tgbotapi.NewReplyKeyboard(
 			tgbotapi.NewKeyboardButtonRow(

@@ -3,6 +3,7 @@ package postgres
 import (
 	trackedsvc "tgbot_surveillance/internal/domain/tracked"
 	usersvc "tgbot_surveillance/internal/domain/user"
+	"time"
 )
 
 type userTracked struct {
@@ -39,6 +40,19 @@ type userTrackedInfo struct {
 	LastName  string          `db:"last_name"`
 }
 
+type historyFriends struct {
+	ID              trackedsvc.ID                `db:"id_history"`
+	TrackedPersonID trackedsvc.ID_TRACKED_PERSON `db:"tracked_id"`
+	CreatedAt       time.Time                    `db:"date_of_change"`
+}
+
+type historyVk struct {
+	VkID      trackedsvc.VkID `db:"vk_id"`
+	FirstName string          `db:"first_name"`
+	LastName  string          `db:"last_name"`
+	CreatedAt time.Time       `db:"date_of_change"`
+}
+
 func (t userTracked) marshal() (*trackedsvc.UserTracked, error) {
 	return &trackedsvc.UserTracked{
 		ID:              trackedsvc.ID(t.ID),
@@ -52,6 +66,40 @@ func (t *userTracked) unmarshal(from *trackedsvc.UserTracked) {
 		ID:              trackedsvc.ID(from.ID),
 		UserID:          usersvc.ID(from.UserID),
 		TrackedPersonID: trackedsvc.ID_TRACKED_PERSON(from.TrackedPersonID),
+	}
+}
+
+func (t historyFriends) marshal() (*trackedsvc.HistoryFriends, error) {
+	return &trackedsvc.HistoryFriends{
+		ID:              trackedsvc.ID(t.ID),
+		TrackedPersonID: trackedsvc.ID_TRACKED_PERSON(t.TrackedPersonID),
+		CreatedAt:       t.CreatedAt,
+	}, nil
+}
+
+func (t *historyFriends) unmarshal(from *trackedsvc.HistoryFriends) {
+	*t = historyFriends{
+		ID:              trackedsvc.ID(from.ID),
+		TrackedPersonID: trackedsvc.ID_TRACKED_PERSON(from.TrackedPersonID),
+		CreatedAt:       from.CreatedAt,
+	}
+}
+
+func (t historyVk) marshal() (*trackedsvc.HistoryVk, error) {
+	return &trackedsvc.HistoryVk{
+		VkID:      trackedsvc.VkID(t.VkID),
+		FirstName: t.FirstName,
+		LastName:  t.LastName,
+		CreatedAt: t.CreatedAt,
+	}, nil
+}
+
+func (t *historyVk) unmarshal(from *trackedsvc.HistoryVk) {
+	*t = historyVk{
+		VkID:      trackedsvc.VkID(from.VkID),
+		FirstName: from.FirstName,
+		LastName:  from.LastName,
+		CreatedAt: from.CreatedAt,
 	}
 }
 

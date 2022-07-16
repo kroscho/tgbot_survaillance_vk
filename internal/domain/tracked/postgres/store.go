@@ -18,25 +18,31 @@ import (
 )
 
 type store struct {
-	db               psql.DB
-	clock            clock.Clock
-	sqlBuilder       sq.StatementBuilderType
-	tableUserTracked string
-	tableTracked     string
-	tablePrevFriends string
-	tableUsers       string
+	db                  psql.DB
+	clock               clock.Clock
+	sqlBuilder          sq.StatementBuilderType
+	tableUserTracked    string
+	tableTracked        string
+	tablePrevFriends    string
+	tableUsers          string
+	tableHistory        string
+	tableAddedFriends   string
+	tableDeletedFriends string
 }
 
 // nolint:golint
 func NewStore(db psql.DB, clock clock.Clock) *store {
 	return &store{
-		db:               db,
-		clock:            clock,
-		sqlBuilder:       sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
-		tableUserTracked: "usertracked",
-		tableTracked:     "trackeds",
-		tablePrevFriends: "prevfriends",
-		tableUsers:       "users",
+		db:                  db,
+		clock:               clock,
+		sqlBuilder:          sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+		tableUserTracked:    "usertracked",
+		tableTracked:        "trackeds",
+		tablePrevFriends:    "prevfriends",
+		tableUsers:          "users",
+		tableHistory:        "historyFriends",
+		tableAddedFriends:   "addedfriends",
+		tableDeletedFriends: "deletedfriends",
 	}
 }
 
@@ -73,19 +79,7 @@ func (s store) Get(ctx context.Context, user *user.User) ([]*trackedsvc.TrackedI
 		if err != nil {
 			return nil, errors.Wrap(err, "marshal")
 		}
-		/*
-			apiVk, _ := govk.NewApiClient(*user.Token)
-			params := govk.UserGetParams{
-				UserIDS: int64(tt.VkID),
-				Fields:  "id, first_name, last_name",
-			}
-			res, err := apiVk.UserGet(params)
-			if err != nil {
-				return nil, errors.Wrap(err, "api vk")
-			}
-			dd.UserVK.FirstName = res.FirstName
-			dd.UserVK.LastName = res.LastName
-		*/
+
 		result = append(result, dd)
 	}
 	return result, nil
@@ -151,26 +145,14 @@ func (s store) GetTrackedByVkID(ctx context.Context, user *user.User, vkId int64
 	if err != nil {
 		return nil, errors.Wrap(err, "marshal")
 	}
-	/*
-		apiVk, _ := govk.NewApiClient(*user.Token)
-		params := govk.UserGetParams{
-			UserIDS: int64(tr.VkID),
-			Fields:  "id, first_name, last_name",
-		}
-		res, err := apiVk.UserGet(params)
-		if err != nil {
-			return nil, errors.Wrap(err, "api vk")
-		}
-		result.UserVK.FirstName = res.FirstName
-		result.UserVK.LastName = res.LastName
-	*/
+
 	return result, nil
 }
 
 func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels.User) error {
 	trackeds, err := s.Get(ctx, user)
 	if err != nil {
-		return errors.Wrap(err, "callback, api vk")
+		return errors.Wrap(err, "callback, get trackeds")
 	}
 	isExist := false
 	for _, tt := range trackeds {
@@ -179,51 +161,64 @@ func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels
 			break
 		}
 	}
+
 	if !isExist {
-		fromTracked := trackedsvc.Tracked{
-			VkID:      trackedsvc.VkID(trackedAdd.UID),
-			FirstName: trackedAdd.FirstName,
-			LastName:  trackedAdd.LastName,
-		}
-
-		var tr tracked
-		tr.unmarshal(&fromTracked)
-
-		st, err := stommer.New(tr, "id_tracked")
+		trackeds, err := s.GetTrackeds(ctx)
 		if err != nil {
-			return errors.Wrap(err, "create stommer")
+			return errors.Wrap(err, "callback, get trackeds")
 		}
+		tracked_id := 0
 
-		returning := st.Columns
-		returning = append(returning, "id_tracked")
+		tr, isExist := trackeds[trackedsvc.VkID(trackedAdd.UID)]
+		if isExist {
+			tracked_id = int(tr[0].ID)
+		} else {
+			fromTracked := trackedsvc.Tracked{
+				VkID:      trackedsvc.VkID(trackedAdd.UID),
+				FirstName: trackedAdd.FirstName,
+				LastName:  trackedAdd.LastName,
+			}
 
-		query, args, err := s.sqlBuilder.Insert(s.tableTracked).Suffix(fmt.Sprintf("RETURNING %s", strings.Join(returning, ", "))).
-			Columns(st.Columns...).
-			Values(st.Values...).ToSql()
+			var tr tracked
+			tr.unmarshal(&fromTracked)
 
-		if err != nil {
-			return errors.Wrap(err, "build query")
-		}
+			st, err := stommer.New(tr, "id_tracked")
+			if err != nil {
+				return errors.Wrap(err, "create stommer")
+			}
 
-		err = s.db.GetContext(ctx, &tr, query, args...)
-		if err != nil {
-			return errors.Wrap(err, "exec query")
+			returning := st.Columns
+			returning = append(returning, "id_tracked")
+
+			query, args, err := s.sqlBuilder.Insert(s.tableTracked).Suffix(fmt.Sprintf("RETURNING %s", strings.Join(returning, ", "))).
+				Columns(st.Columns...).
+				Values(st.Values...).ToSql()
+
+			if err != nil {
+				return errors.Wrap(err, "build query")
+			}
+
+			err = s.db.GetContext(ctx, &tr, query, args...)
+			if err != nil {
+				return errors.Wrap(err, "exec query")
+			}
+			tracked_id = int(tr.ID)
 		}
 
 		fromUserTracked := trackedsvc.UserTracked{
 			UserID:          user.ID,
-			TrackedPersonID: trackedsvc.ID_TRACKED_PERSON(tr.ID),
+			TrackedPersonID: trackedsvc.ID_TRACKED_PERSON(tracked_id),
 		}
 
 		var user_tracked userTracked
 		user_tracked.unmarshal(&fromUserTracked)
 
-		st, err = stommer.New(user_tracked, "id_user_tracked")
+		st, err := stommer.New(user_tracked, "id_user_tracked")
 		if err != nil {
 			return errors.Wrap(err, "create stommer")
 		}
 
-		query, args, err = s.sqlBuilder.Insert(s.tableUserTracked).
+		query, args, err := s.sqlBuilder.Insert(s.tableUserTracked).
 			Columns(st.Columns...).
 			Values(st.Values...).ToSql()
 
@@ -244,7 +239,7 @@ func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels
 		}
 
 		trackedInfo := trackedsvc.TrackedInfo{
-			ID: tr.ID,
+			ID: trackedsvc.ID(tracked_id),
 			UserVK: trackedsvc.UserVK{
 				UID:       trackedsvc.VkID(trackedAdd.UID),
 				FirstName: trackedAdd.FirstName,
@@ -413,6 +408,8 @@ func (s store) DeleteUserFromTracked(ctx context.Context, user *user.User, track
 	//	return errors.Wrap(err, "Internal Error")
 	//}
 
+	fmt.Println("DELETE: ", user.ID, tracked.ID)
+
 	query := fmt.Sprintf("delete from %s where user_id=%d and tracked_id=%d", s.tableUserTracked, user.ID, tracked.ID)
 
 	result, err := s.db.ExecContext(ctx, query)
@@ -466,4 +463,151 @@ func (s store) DeleteUserFromTracked(ctx context.Context, user *user.User, track
 	}
 
 	return nil
+}
+
+func (s store) AddInHistory(ctx context.Context, from *trackedsvc.TrackedInfo, addedFriends map[int64]vkmodels.User, deletedFriends map[int64]vkmodels.User) error {
+
+	columns := []string{"tracked_id", "date_of_change"}
+	returning := append(columns, "id_history")
+
+	timeNow := clock.Real{}.Now()
+
+	query, args, err := s.sqlBuilder.Insert(s.tableHistory).Suffix(fmt.Sprintf("RETURNING %s", strings.Join(returning, ", "))).
+		Columns(columns...).
+		Values(from.ID, timeNow).ToSql()
+
+	if err != nil {
+		return errors.Wrap(err, "build query")
+	}
+	fromHistory := trackedsvc.HistoryFriends{}
+
+	var history historyFriends
+	history.unmarshal(&fromHistory)
+
+	err = s.db.GetContext(ctx, &history, query, args...)
+	if err != nil {
+		return errors.Wrap(err, "exec query")
+	}
+
+	columns = []string{"history_id", "vk_id"}
+
+	for _, user := range addedFriends {
+		query, args, err = s.sqlBuilder.Insert(s.tableAddedFriends).
+			Columns(columns...).
+			Values(history.ID, user.UID).ToSql()
+
+		if err != nil {
+			return errors.Wrap(err, "build query")
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return errors.Wrap(err, "exec query")
+		}
+		affected, err := result.RowsAffected()
+		if affected == 0 {
+			return errors.Wrap(err, "Request failed.")
+		}
+		if err != nil {
+			return errors.Wrap(err, "Internal Error")
+		}
+	}
+
+	for _, user := range deletedFriends {
+		query, args, err = s.sqlBuilder.Insert(s.tableDeletedFriends).
+			Columns(columns...).
+			Values(history.ID, user.UID).ToSql()
+
+		if err != nil {
+			return errors.Wrap(err, "build query")
+		}
+
+		result, err := s.db.ExecContext(ctx, query, args...)
+		if err != nil {
+			return errors.Wrap(err, "exec query")
+		}
+		affected, err := result.RowsAffected()
+		if affected == 0 {
+			return errors.Wrap(err, "Request failed.")
+		}
+		if err != nil {
+			return errors.Wrap(err, "Internal Error")
+		}
+	}
+
+	return nil
+}
+
+func (s store) GetHistoryAboutFriends(ctx context.Context, user *user.User, tracked *trackedsvc.TrackedInfo) (map[string][]*trackedsvc.HistoryVk, map[string][]*trackedsvc.HistoryVk, error) {
+
+	builderAdded := s.sqlBuilder.Select("date_of_change", "vk_id").
+		From(s.tableHistory + " as h").
+		InnerJoin(s.tableAddedFriends + " as a on h.id_history = a.history_id").
+		Where(sq.Eq{"tracked_id": tracked.ID})
+
+	queryAdded, argsAdded, err := builderAdded.ToSql()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "build query")
+	}
+
+	builderDeleted := s.sqlBuilder.Select("date_of_change", "vk_id").
+		From(s.tableHistory + " as h").
+		InnerJoin(s.tableDeletedFriends + " as a on h.id_history = a.history_id").
+		Where(sq.Eq{"tracked_id": tracked.ID})
+
+	queryDeleted, argsDeleted, err := builderDeleted.ToSql()
+	if err != nil {
+		return nil, nil, errors.Wrap(err, "build query")
+	}
+
+	addedFriends := make(map[string][]*trackedsvc.HistoryVk)
+	deletedFriends := make(map[string][]*trackedsvc.HistoryVk)
+
+	var historyAddedFriends []*historyVk
+
+	queries := []string{queryAdded, queryDeleted}
+
+	for key, query := range queries {
+
+		if key == 0 {
+			err = s.db.SelectContext(ctx, &historyAddedFriends, query, argsAdded...)
+		} else {
+			err = s.db.SelectContext(ctx, &historyAddedFriends, query, argsDeleted...)
+		}
+		if err != nil {
+			return nil, nil, errors.Wrap(err, "select disputes")
+		}
+
+		if len(historyAddedFriends) == 0 {
+			continue
+		}
+
+		for _, tt := range historyAddedFriends {
+			result, err := tt.marshal()
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "marshal")
+			}
+			apiVk, _ := govk.NewApiClient(*user.Token)
+			params := govk.UserGetParams{
+				UserIDS: int64(tt.VkID),
+				Fields:  "id, first_name, last_name",
+			}
+			res, err := apiVk.UserGet(params)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "api vk")
+			}
+			result.FirstName = res.FirstName
+			result.LastName = res.LastName
+
+			dateStr := result.CreatedAt.Format("2006-01-02")
+
+			if key == 0 {
+				addedFriends[dateStr] = append(addedFriends[dateStr], result)
+			} else {
+				deletedFriends[dateStr] = append(deletedFriends[dateStr], result)
+			}
+		}
+	}
+
+	return addedFriends, deletedFriends, nil
 }

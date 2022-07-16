@@ -2,6 +2,7 @@ package tracked
 
 import (
 	"tgbot_surveillance/internal/domain/user"
+	"time"
 
 	"github.com/pkg/errors"
 )
@@ -42,6 +43,19 @@ type PrevFriends struct {
 	ID              ID
 	TrackedPersonID ID_TRACKED_PERSON
 	VkID            VkID
+}
+
+type HistoryFriends struct {
+	ID              ID
+	TrackedPersonID ID_TRACKED_PERSON
+	CreatedAt       time.Time
+}
+
+type HistoryVk struct {
+	VkID      VkID
+	FirstName string
+	LastName  string
+	CreatedAt time.Time
 }
 
 type UserVK struct {

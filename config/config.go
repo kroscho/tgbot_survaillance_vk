@@ -12,6 +12,7 @@ type Telegram struct {
 
 type Config struct {
 	Telegram             Telegram
+	Secret               string
 	StorageDSN           string
 	NotificationDuration int
 }
@@ -24,6 +25,7 @@ func New() *Config {
 		Telegram: Telegram{
 			Token: getEnv("TELEGRAM_TOKEN", ""),
 		},
+		Secret:               getEnv("SECRET", ""),
 		NotificationDuration: notDurationInt,
 		StorageDSN:           fmt.Sprintf("user=%s password=%s dbname=%s sslmode=%s", getEnv("POSTGRES_USER", ""), getEnv("POSTGRES_PASSWORD", ""), getEnv("POSTGRES_DBNAME", ""), getEnv("POSTGRES_SSLMODE", "")),
 	}

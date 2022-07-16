@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"tgbot_surveillance/config"
 	"tgbot_surveillance/internal/domain/tracked"
@@ -79,7 +80,12 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 
 	go func() {
 		for {
-			s.runNotifications()
+			fmt.Println("GOGOGO")
+			err := s.runNotifications()
+			if err != nil {
+				s.logger.Errorf("%+v", err)
+				return
+			}
 			time.Sleep(time.Duration(cfg.NotificationDuration) * time.Minute)
 		}
 	}()
@@ -95,7 +101,7 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 				return
 			case update := <-updates:
 				s.wg.Add(1)
-				go s.proccessUpdate(update)
+				go s.proccessUpdate(update, cfg)
 			}
 		}
 	}()
@@ -105,7 +111,7 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 	return nil
 }
 
-func (s *Server) proccessUpdate(update tgbotapi.Update) {
+func (s *Server) proccessUpdate(update tgbotapi.Update, cfg *config.Config) {
 	defer s.wg.Done()
 
 	var err error
@@ -129,7 +135,7 @@ func (s *Server) proccessUpdate(update tgbotapi.Update) {
 			"user_data":  update.Message.From,
 			"text":       update.Message.Text,
 		}
-		err = s.messageHandler(update.Message)
+		err = s.messageHandler(update.Message, cfg)
 		if err != nil {
 			s.logger.WithFields(fields).Errorf("%+v", err)
 			return

@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"tgbot_surveillance/config"
 	usersvc "tgbot_surveillance/internal/domain/user"
 	"tgbot_surveillance/pkg/clock"
 	"tgbot_surveillance/pkg/database/psql"
+	Encrypt "tgbot_surveillance/pkg/encrypt"
 	"tgbot_surveillance/pkg/stommer"
 
 	sq "github.com/Masterminds/squirrel"
@@ -17,17 +19,19 @@ type store struct {
 	db                 psql.DB
 	clock              clock.Clock
 	sqlBuilder         sq.StatementBuilderType
+	cfg                *config.Config
 	tableUsers         string
 	tableSubscribes    string
 	tableUserSubscribe string
 }
 
 // nolint:golint
-func NewStore(db psql.DB, clock clock.Clock) *store {
+func NewStore(db psql.DB, clock clock.Clock, cfg *config.Config) *store {
 	return &store{
 		db:                 db,
 		clock:              clock,
 		sqlBuilder:         sq.StatementBuilder.PlaceholderFormat(sq.Dollar),
+		cfg:                cfg,
 		tableUsers:         "users",
 		tableSubscribes:    "subscribes",
 		tableUserSubscribe: "usersubscribe",
@@ -177,6 +181,12 @@ func (s store) GetUserByTgID(ctx context.Context, tgID usersvc.TelegramID) (*use
 		if err != nil {
 			return nil, errors.Wrap(err, "marshal")
 		}
+
+		decToken, err := Encrypt.Decrypt(*dd.Token, s.cfg.Secret)
+		if err != nil {
+			fmt.Println("error decrypting your encrypted text: ", err)
+		}
+		dd.Token = &decToken
 		result = append(result, dd)
 	}
 

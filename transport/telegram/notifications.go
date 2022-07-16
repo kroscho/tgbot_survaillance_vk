@@ -20,6 +20,7 @@ func (s Server) runNotifications() error {
 
 	for key, users := range trackeds {
 		usr, err := s.services.UserService.GetUserByTgID(context.Background(), user.TelegramID(users[0].TgID))
+
 		if err != nil {
 			return errors.Wrapf(err, "tg_user_id: %v", users[0].TgID)
 		}
@@ -51,11 +52,16 @@ func (s Server) runNotifications() error {
 
 		if text != "Пока изменений нет" {
 			for _, u := range users {
-				text = fmt.Sprintf("Отслеживаемый: %s \n%s", users[0].FirstName+" "+users[0].LastName, text)
-				m := tgbotapi.NewMessage(int64(u.TgID), text)
+				text1 := fmt.Sprintf("Отслеживаемый: %s \n%s", users[0].FirstName+" "+users[0].LastName, text)
+				m := tgbotapi.NewMessage(int64(u.TgID), text1)
 				if _, err = s.tg.Send(m); err != nil {
 					return errors.Wrap(err, "send msg")
 				}
+			}
+			err = s.services.TrackedService.AddInHistory(context.Background(), &tracked.TrackedInfo{ID: users[0].ID}, addedFriends, deletedFriends)
+			if err != nil {
+				fmt.Println("Error: ", err)
+				return errors.Wrap(err, "add in history")
 			}
 		}
 	}

@@ -124,15 +124,41 @@ func (s Server) getTextAboutAddedAndDeletedFriends(addedFriendsIds map[int64]vkm
 	return text
 }
 
+// получить текст истории о добавленных и удаленных друзьях
+func (s Server) getTextHistoryFriends(addedFriendsIds map[string][]*tracked.HistoryVk, deletedFriendsIds map[string][]*tracked.HistoryVk) string {
+	text := ""
+	if len(addedFriendsIds) == 0 && len(deletedFriendsIds) == 0 {
+		text += "История пуста"
+	} else {
+		for date, addedFriends := range addedFriendsIds {
+			text += "\n<b>" + date + "</b>\n <b>Новыe друзья:</b> "
+			for _, addedfriend := range addedFriends {
+				text += addedfriend.FirstName + "_" + addedfriend.LastName + "  "
+			}
+		}
+		for date, deletedFriends := range deletedFriendsIds {
+			text += "\n<b>" + date + "</b>\n <b>Удаленные друзья:</b> "
+			for _, addedfriend := range deletedFriends {
+				text += addedfriend.FirstName + "_" + addedfriend.LastName + "  "
+			}
+		}
+	}
+	return text
+}
+
 func (s Server) isMessageButton(updateText string) bool {
 	switch updateText {
 	case startButton:
+		return true
+	case infoAboutBot:
 		return true
 	case mainButton:
 		return true
 	case mySubscriptionButton:
 		return true
 	case contactsButton:
+		return true
+	case trackedButton:
 		return true
 	case getTokenVkButton:
 		return true

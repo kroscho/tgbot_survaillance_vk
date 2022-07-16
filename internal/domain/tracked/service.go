@@ -16,6 +16,8 @@ type Service interface {
 	AddUserInPrevFriends(ctx context.Context, addUser *vkmodels.User, tracked *TrackedInfo) error
 	DeleteUserFromTracked(ctx context.Context, user *user.User, tracked *TrackedInfo) error
 	GetTrackeds(ctx context.Context) (map[VkID][]*UserTrackedInfo, error)
+	AddInHistory(ctx context.Context, from *TrackedInfo, addedFriends map[int64]vkmodels.User, deletedFriends map[int64]vkmodels.User) error
+	GetHistoryAboutFriends(ctx context.Context, user *user.User, tracked *TrackedInfo) (map[string][]*HistoryVk, map[string][]*HistoryVk, error)
 }
 
 type service struct {
@@ -61,4 +63,12 @@ func (s service) DeleteUserFromTracked(ctx context.Context, user *user.User, tra
 
 func (s service) GetTrackeds(ctx context.Context) (map[VkID][]*UserTrackedInfo, error) {
 	return s.store.GetTrackeds(ctx)
+}
+
+func (s service) AddInHistory(ctx context.Context, from *TrackedInfo, addedFriends map[int64]vkmodels.User, deletedFriends map[int64]vkmodels.User) error {
+	return s.store.AddInHistory(ctx, from, addedFriends, deletedFriends)
+}
+
+func (s service) GetHistoryAboutFriends(ctx context.Context, user *user.User, tracked *TrackedInfo) (map[string][]*HistoryVk, map[string][]*HistoryVk, error) {
+	return s.store.GetHistoryAboutFriends(ctx, user, tracked)
 }

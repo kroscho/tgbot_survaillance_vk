@@ -94,8 +94,6 @@ func (u *User) UserSearch(userSearchParams UserSearchParams) (*UserSearchResult,
 		return nil, err
 	}
 
-	fmt.Println("REsult: ", result.Count, result.Items)
-
 	if result.Count == 0 {
 		return nil, nil
 	} else {

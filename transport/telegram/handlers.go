@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"tgbot_surveillance/config"
 	trackedsvc "tgbot_surveillance/internal/domain/tracked"
 	"tgbot_surveillance/internal/domain/user"
 	"tgbot_surveillance/pkg/clock"
+	encrypt "tgbot_surveillance/pkg/encrypt"
 	govk "tgbot_surveillance/pkg/go-vk"
 	vkmodels "tgbot_surveillance/pkg/go-vk/models"
 	"time"
@@ -21,7 +23,6 @@ func (s *Server) callbackQueryHandler(update *tgbotapi.CallbackQuery) error {
 	if err != nil {
 		return errors.Wrapf(err, "callbackQueryHandler, tg_user_id: %v", update.From.ID)
 	}
-	fmt.Println("USER: ", usr)
 
 	s.logger.Infof("User: %v;	Data: %v", usr.ID, update.Data)
 
@@ -50,7 +51,7 @@ func (s *Server) callbackQueryHandler(update *tgbotapi.CallbackQuery) error {
 	return nil
 }
 
-func (s *Server) messageHandler(update *tgbotapi.Message) error {
+func (s *Server) messageHandler(update *tgbotapi.Message, cfg *config.Config) error {
 
 	if update.IsCommand() {
 		return s.commandHandler(update)
@@ -83,7 +84,7 @@ func (s *Server) messageHandler(update *tgbotapi.Message) error {
 			if _, err = s.tg.Send(msg1); err != nil {
 				return errors.Wrap(err, "message, not valid token")
 			}
-			err = s.tokenVkMessage(usr, &msg, update)
+			err = s.tokenVkMessage(usr, &msg, update, cfg)
 		case SearchByIdVk:
 			err = s.searchByVkID(usr, &msg, update)
 		case SearchByNameVk:
@@ -95,6 +96,9 @@ func (s *Server) messageHandler(update *tgbotapi.Message) error {
 		switch update.Text {
 		case startButton:
 			err = s.startButton(usr, &msg, update)
+
+		case infoAboutBot:
+			err = s.infoAboutBot(&msg, update)
 
 		case mySubscriptionButton:
 			//msg.Text = usr.GetSubscriptionMsg()
@@ -139,6 +143,9 @@ func (s *Server) messageHandler(update *tgbotapi.Message) error {
 
 		case deletedFromSurvaillanceButton:
 			err = s.deletedFromSurvaillanceButton(usr, &msg)
+
+		case getHistoryAboutFriends:
+			err = s.getHistoryAboutFriends(usr, &msg)
 
 		default:
 			msg1 := tgbotapi.NewDeleteMessage(update.Chat.ID, update.MessageID)
@@ -200,9 +207,9 @@ func (s *Server) startButton(user *user.User, msg *tgbotapi.MessageConfig, updat
 	text := ""
 
 	if isToken {
-		text = fmt.Sprintf(`Привет %s, меня зовут mr. Kros, хочу помочь тебе в слежке`, update.From.FirstName)
+		text = fmt.Sprintf(`Привет <b>%s</b>, меня зовут mr. Kros, хочу помочь тебе в слежке`, update.From.FirstName)
 	} else {
-		text = fmt.Sprintf("Привет %s, меня зовут mr. Kros, хочу помочь тебе в слежке.\n%s", update.From.FirstName, MAIN_NO_TOKEN_TEXT)
+		text = fmt.Sprintf("Привет <b>%s</b>, меня зовут mr. Kros, хочу помочь тебе в слежке.\n%s", update.From.FirstName, MAIN_NO_TOKEN_TEXT)
 	}
 	msg.Text = text
 	keyboard, err := s.getMainKeyboard(isToken)
@@ -210,6 +217,19 @@ func (s *Server) startButton(user *user.User, msg *tgbotapi.MessageConfig, updat
 		return errors.Wrap(err, "message handler, start button")
 	}
 	msg.ReplyMarkup = keyboard
+	msg.ParseMode = "html"
+
+	return nil
+}
+
+func (s *Server) infoAboutBot(msg *tgbotapi.MessageConfig, update *tgbotapi.Message) error {
+
+	text := fmt.Sprintf(`Привет <b>%s</b>`, update.From.FirstName)
+	text += "\n Бот будет отправлять сообщения, если у тех, кого вы отслеживаете, появились изменения в друзьях (появился новый друг или друг удален).\n Для этого вам необходимо добавить людей в отслеживаемые. Успехов)"
+
+	msg.Text = text
+	msg.ParseMode = "html"
+	msg.ReplyMarkup = startKeyboard
 
 	return nil
 }
@@ -386,7 +406,7 @@ func (s *Server) searchByLinkVk(user *user.User, msg *tgbotapi.MessageConfig, up
 	return nil
 }
 
-func (s *Server) tokenVkMessage(usr *user.User, msg *tgbotapi.MessageConfig, update *tgbotapi.Message) error {
+func (s *Server) tokenVkMessage(usr *user.User, msg *tgbotapi.MessageConfig, update *tgbotapi.Message, cfg *config.Config) error {
 	token, userId := CutAccessTokenAndUserId(update.Text)
 
 	if token == "" || userId == "" {
@@ -400,7 +420,14 @@ func (s *Server) tokenVkMessage(usr *user.User, msg *tgbotapi.MessageConfig, upd
 		}
 		usr.VkID = user.VkID(&vkID)
 
-		if err = s.services.UserService.Update(context.Background(), usr); err != nil {
+		userCopy := usr
+		encToken, err := encrypt.Encrypt(token, cfg.Secret)
+		if err != nil {
+			return errors.Wrap(err, "error encrypting your classified text")
+		}
+		userCopy.Token = &encToken
+
+		if err = s.services.UserService.Update(context.Background(), userCopy); err != nil {
 			return errors.Wrapf(err, "MessageHandler, tg_user_id: %v", update.From.ID)
 		}
 
@@ -485,7 +512,7 @@ func (s *Server) trackedButton(usr *user.User, msg *tgbotapi.MessageConfig) erro
 }
 
 func (s *Server) friendsByTrackedButton(msg *tgbotapi.MessageConfig) error {
-	msg.Text = "Вы можете получить актуальную информацию о друзьях, либо посмотреть историю изменений за все время отслеживания данного пользователя."
+	msg.Text = "Как только изменения в друзьях появятся, бот вам об этом сообщит)\nНо вы можете посмотреть историю изменений за все время отслеживания данного пользователя."
 	msg.ReplyMarkup = trackedKeyboard
 
 	return nil
@@ -532,6 +559,23 @@ func (s *Server) deletedFromSurvaillanceButton(usr *user.User, msg *tgbotapi.Mes
 	msg.Text = fmt.Sprintf("%s убран из отслеживаемых успешно", s.curTracked.UserVK.FirstName+" "+s.curTracked.UserVK.LastName)
 	s.curTracked = nil
 	msg.ReplyMarkup = deletedFromTrackedKeyboard
+
+	return nil
+}
+
+func (s *Server) getHistoryAboutFriends(usr *user.User, msg *tgbotapi.MessageConfig) error {
+	s.logger.Info("Message: ", getHistoryAboutFriends)
+
+	addedFriends, deletedFriends, err := s.services.TrackedService.GetHistoryAboutFriends(context.Background(), usr, s.curTracked)
+	if err != nil {
+		return errors.Wrap(err, "get history")
+	}
+
+	text := s.getTextHistoryFriends(addedFriends, deletedFriends)
+
+	msg.Text = text
+	msg.ParseMode = "html"
+	msg.ReplyMarkup = trackedKeyboard
 
 	return nil
 }

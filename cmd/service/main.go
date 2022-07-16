@@ -60,7 +60,7 @@ func run(logger logrus.FieldLogger) error {
 	defer dbClient.Close()
 
 	userService := user.NewService(
-		postgresUser.NewStore(dbClient.GetConnection(), clk),
+		postgresUser.NewStore(dbClient.GetConnection(), clk, cfg),
 	)
 
 	trackedSevice := tracked.NewService(
