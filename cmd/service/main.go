@@ -8,8 +8,6 @@ import (
 	postgresTracked "tgbot_surveillance/internal/domain/tracked/postgres"
 	"tgbot_surveillance/internal/domain/user"
 	postgresUser "tgbot_surveillance/internal/domain/user/postgres"
-	"tgbot_surveillance/internal/domain/userVk"
-	postgresUserVk "tgbot_surveillance/internal/domain/userVk/postgres"
 	"tgbot_surveillance/pkg/clock"
 	"tgbot_surveillance/pkg/database/psql"
 	"tgbot_surveillance/pkg/logger"
@@ -68,15 +66,9 @@ func run(logger logrus.FieldLogger) error {
 		postgresTracked.NewStore(dbClient.GetConnection(), clk),
 	)
 
-	userVkService := userVk.NewService(
-		userService,
-		postgresUserVk.NewStore(dbClient.GetConnection(), clk),
-	)
-
 	services := telegram.Services{
 		UserService:    userService,
 		TrackedService: trackedSevice,
-		UserVkService:  userVkService,
 	}
 
 	server := telegram.NewServer(bot, logger, services)

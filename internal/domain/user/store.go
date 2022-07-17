@@ -9,6 +9,7 @@ type Store interface {
 	Get(ctx context.Context, opts ...GetOptFunc) ([]*User, error)
 	Update(ctx context.Context, user *User) error
 	GetUserByTgID(ctx context.Context, tgID TelegramID) (*User, error)
+	Delete(ctx context.Context, user *User) error
 }
 
 type Filters struct {

@@ -57,6 +57,8 @@ func (s *Server) messageHandler(update *tgbotapi.Message, cfg *config.Config) er
 		return s.commandHandler(update)
 	}
 
+	fmt.Println("TgID: ", update.From.ID)
+
 	usr, err := s.services.UserService.GetUserByTgID(context.Background(), user.TelegramID(update.From.ID))
 	if err != nil {
 		return errors.Wrapf(err, "MessageHandler, tg_user_id: %v", update.From.ID)
@@ -65,7 +67,7 @@ func (s *Server) messageHandler(update *tgbotapi.Message, cfg *config.Config) er
 	if usr == nil {
 		if usr, err = s.services.UserService.Create(context.Background(), user.New(
 			user.TelegramID(update.From.ID),
-			update.From.UserName,
+			update.From.FirstName,
 			clock.Real{}.Now(),
 		)); err != nil {
 			return errors.Wrapf(err, "MessageHandler, tg_user_id: %v", update.From.ID)
@@ -146,6 +148,15 @@ func (s *Server) messageHandler(update *tgbotapi.Message, cfg *config.Config) er
 
 		case getHistoryAboutFriends:
 			err = s.getHistoryAboutFriends(usr, &msg)
+
+		case logoutOfTheBotButton:
+			err = s.logoutOfTheBot(&msg)
+
+		case yesLogoutOfTheBotButton:
+			err = s.yesLogoutOfTheBot(usr, &msg)
+
+		case noLogoutOfTheBotButton:
+			err = s.noLogoutOfTheBot(&msg)
 
 		default:
 			msg1 := tgbotapi.NewDeleteMessage(update.Chat.ID, update.MessageID)
@@ -576,6 +587,43 @@ func (s *Server) getHistoryAboutFriends(usr *user.User, msg *tgbotapi.MessageCon
 	msg.Text = text
 	msg.ParseMode = "html"
 	msg.ReplyMarkup = trackedKeyboard
+
+	return nil
+}
+
+func (s *Server) logoutOfTheBot(msg *tgbotapi.MessageConfig) error {
+	s.logger.Info("Message: ", logoutOfTheBotButton)
+
+	msg.Text = "Вы уверены, что хотите покинуть бота?"
+	msg.ReplyMarkup = logoutOfTheBotKeyboard
+
+	return nil
+}
+
+func (s *Server) yesLogoutOfTheBot(usr *user.User, msg *tgbotapi.MessageConfig) error {
+	s.logger.Info("Message: ", yesLogoutOfTheBotButton)
+
+	err := s.services.UserService.Delete(context.Background(), usr)
+	if err != nil {
+		return errors.Wrap(err, "delete user")
+	}
+
+	msg.Text = fmt.Sprintf("<b>%s</b>, вы успешно покинули бота, спасибо, за проведенное время вместе с нами! \nВведите /start, если захотите возобновить работу", usr.Username)
+	msg.ParseMode = "html"
+	msg.ReplyMarkup = startCommandKeybpard
+
+	return nil
+}
+
+func (s *Server) noLogoutOfTheBot(msg *tgbotapi.MessageConfig) error {
+	s.logger.Info("Message: ", noLogoutOfTheBotButton)
+
+	msg.Text = "Ну я рад, что вы ошиблись)"
+	keyboard, err := s.getMainKeyboard(true)
+	if err != nil {
+		return errors.Wrap(err, "message handler, posts button")
+	}
+	msg.ReplyMarkup = keyboard
 
 	return nil
 }

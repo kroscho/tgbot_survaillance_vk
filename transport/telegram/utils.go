@@ -2,6 +2,7 @@ package telegram
 
 import (
 	"context"
+	"sort"
 	"strings"
 	"tgbot_surveillance/internal/domain/tracked"
 	"tgbot_surveillance/internal/domain/user"
@@ -130,16 +131,52 @@ func (s Server) getTextHistoryFriends(addedFriendsIds map[string][]*tracked.Hist
 	if len(addedFriendsIds) == 0 && len(deletedFriendsIds) == 0 {
 		text += "История пуста"
 	} else {
-		for date, addedFriends := range addedFriendsIds {
-			text += "\n<b>" + date + "</b>\n <b>Новыe друзья:</b> "
-			for _, addedfriend := range addedFriends {
-				text += addedfriend.FirstName + "_" + addedfriend.LastName + "  "
-			}
+		type Void struct{}
+		var member Void
+
+		dates := make(map[string]Void)
+
+		combined := make(map[string][]*tracked.HistoryVk)
+		combinedKeys := make([]string, 0, len(deletedFriendsIds))
+
+		for key, val := range addedFriendsIds {
+			combinedKeys = append(combinedKeys, key)
+			combined[key] = append(combined[key], val...)
 		}
-		for date, deletedFriends := range deletedFriendsIds {
-			text += "\n<b>" + date + "</b>\n <b>Удаленные друзья:</b> "
-			for _, addedfriend := range deletedFriends {
-				text += addedfriend.FirstName + "_" + addedfriend.LastName + "  "
+		for key, val := range deletedFriendsIds {
+			combinedKeys = append(combinedKeys, key)
+			combined[key] = append(combined[key], val...)
+		}
+
+		sort.Sort(sort.Reverse(sort.StringSlice(combinedKeys)))
+
+		for _, date := range combinedKeys {
+			_, okDate := dates[date]
+			isDeletedPrint := false
+			if !okDate {
+				addedFriends, ok1 := addedFriendsIds[date]
+				deletedFriends, ok2 := deletedFriendsIds[date]
+				if ok1 {
+					text += "\n<b>" + date + "</b>\n <b>Новыe друзья:</b> "
+					for _, addedfriend := range addedFriends {
+						text += addedfriend.FirstName + "_" + addedfriend.LastName + "  "
+					}
+				} else {
+					if ok2 {
+						text += "\n<b>" + date + "</b>\n <b>Удаленные друзья:</b> "
+						for _, addedfriend := range deletedFriendsIds[date] {
+							text += addedfriend.FirstName + "_" + addedfriend.LastName + "  "
+						}
+						isDeletedPrint = true
+					}
+				}
+				if ok2 && !isDeletedPrint {
+					text += "\n <b>Удаленные друзья:</b> "
+					for _, deletedfriend := range deletedFriends {
+						text += deletedfriend.FirstName + "_" + deletedfriend.LastName + "  "
+					}
+				}
+				dates[date] = member
 			}
 		}
 	}
@@ -189,6 +226,12 @@ func (s Server) isMessageButton(updateText string) bool {
 	case getHistoryAboutFriends:
 		return true
 	case deletedFromSurvaillanceButton:
+		return true
+	case logoutOfTheBotButton:
+		return true
+	case yesLogoutOfTheBotButton:
+		return true
+	case noLogoutOfTheBotButton:
 		return true
 	default:
 		return false

@@ -23,6 +23,7 @@ type store struct {
 	tableUsers         string
 	tableSubscribes    string
 	tableUserSubscribe string
+	tableUserTracked   string
 }
 
 // nolint:golint
@@ -35,6 +36,7 @@ func NewStore(db psql.DB, clock clock.Clock, cfg *config.Config) *store {
 		tableUsers:         "users",
 		tableSubscribes:    "subscribes",
 		tableUserSubscribe: "usersubscribe",
+		tableUserTracked:   "usertracked",
 	}
 }
 
@@ -182,13 +184,42 @@ func (s store) GetUserByTgID(ctx context.Context, tgID usersvc.TelegramID) (*use
 			return nil, errors.Wrap(err, "marshal")
 		}
 
-		decToken, err := Encrypt.Decrypt(*dd.Token, s.cfg.Secret)
-		if err != nil {
-			fmt.Println("error decrypting your encrypted text: ", err)
+		if dd.Token != nil {
+			decToken, err := Encrypt.Decrypt(*dd.Token, s.cfg.Secret)
+			if err != nil {
+				fmt.Println("error decrypting your encrypted text: ", err)
+			}
+			dd.Token = &decToken
 		}
-		dd.Token = &decToken
 		result = append(result, dd)
 	}
 
 	return result[0], nil
+}
+
+func (s store) Delete(ctx context.Context, user *usersvc.User) error {
+
+	query := fmt.Sprintf("delete from %s where user_id=%d", s.tableUserTracked, user.ID)
+
+	_, err := s.db.ExecContext(ctx, query)
+	if err != nil {
+		return errors.Wrap(err, "exec query")
+	}
+
+	query = fmt.Sprintf("delete from %s where id_user=%d", s.tableUsers, user.ID)
+
+	result, err := s.db.ExecContext(ctx, query)
+	if err != nil {
+		return errors.Wrap(err, "exec query")
+	}
+
+	affected, err := result.RowsAffected()
+	if affected == 0 {
+		return errors.Wrap(err, "User not found")
+	}
+	if err != nil {
+		return errors.Wrap(err, "Internal Error")
+	}
+
+	return nil
 }

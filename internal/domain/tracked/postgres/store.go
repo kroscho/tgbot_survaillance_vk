@@ -227,6 +227,7 @@ func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels
 		}
 
 		result, err := s.db.ExecContext(ctx, query, args...)
+
 		if err != nil {
 			return errors.Wrap(err, "exec query")
 		}
@@ -300,6 +301,10 @@ func (s store) GetPrevFriends(ctx context.Context, tracked *trackedsvc.TrackedIn
 }
 
 func (s store) UpdatePrevFriends(ctx context.Context, tracked *trackedsvc.TrackedInfo, newFriends map[int64]vkmodels.User) error {
+	err := s.DeletePrevFriendsFromTracked(ctx, tracked)
+	if err != nil {
+		return errors.Wrap(err, "delete prev friends")
+	}
 
 	for _, friend := range newFriends {
 		s.AddUserInPrevFriends(ctx, &friend, tracked)
@@ -307,16 +312,27 @@ func (s store) UpdatePrevFriends(ctx context.Context, tracked *trackedsvc.Tracke
 	return nil
 }
 
+func (s store) DeletePrevFriendsFromTracked(ctx context.Context, tracked *trackedsvc.TrackedInfo) error {
+
+	query := fmt.Sprintf("delete from %s where tracked_id=%d", s.tablePrevFriends, tracked.ID)
+
+	result, err := s.db.ExecContext(ctx, query)
+	if err != nil {
+		return errors.Wrap(err, "exec query")
+	}
+
+	affected, err := result.RowsAffected()
+	if affected == 0 {
+		return errors.Wrap(err, "User not found")
+	}
+	if err != nil {
+		return errors.Wrap(err, "Internal Error")
+	}
+
+	return nil
+}
+
 func (s store) DeleteUserFromPrevFriends(ctx context.Context, deleteUser *vkmodels.User, tracked *trackedsvc.TrackedInfo) error {
-
-	/*query, args, err := sq.Delete(s.tablePrevFriends).
-	Where(sq.Eq{"vk_id": deleteUser.UID}).
-	Where(sq.Eq{"tracked_id": tracked.ID}).
-	ToSql()*/
-
-	//if err != nil {
-	//	return errors.Wrap(err, "Internal Error")
-	//}
 
 	query := fmt.Sprintf("delete from %s where vk_id=%d and tracked_id=%d", s.tablePrevFriends, deleteUser.UID, tracked.ID)
 
@@ -398,15 +414,6 @@ func (s store) CheckUsersAboutTracked(ctx context.Context, user *user.User, trac
 }
 
 func (s store) DeleteUserFromTracked(ctx context.Context, user *user.User, tracked *trackedsvc.TrackedInfo) error {
-
-	/*query, args, err := sq.Delete(s.tablePrevFriends).
-	Where(sq.Eq{"vk_id": deleteUser.UID}).
-	Where(sq.Eq{"tracked_id": tracked.ID}).
-	ToSql()*/
-
-	//if err != nil {
-	//	return errors.Wrap(err, "Internal Error")
-	//}
 
 	fmt.Println("DELETE: ", user.ID, tracked.ID)
 

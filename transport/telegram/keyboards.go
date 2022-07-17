@@ -9,9 +9,13 @@ import (
 )
 
 const (
+	startCommand                  = "/start"
 	startButton                   = "Начать"
 	infoAboutBot                  = "Что делает бот?"
 	surveillanceButton            = "Слежка"
+	logoutOfTheBotButton          = "Покинуть бота("
+	yesLogoutOfTheBotButton       = "Да, уверен"
+	noLogoutOfTheBotButton        = "Нет, случайно нажал"
 	mySubscriptionButton          = "Подписка"
 	contactsButton                = "Помощь"
 	mainButton                    = "Главная"
@@ -61,6 +65,12 @@ var (
 		),
 	)
 
+	startCommandKeybpard = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(startCommand),
+		),
+	)
+
 	addToTrackedKeyboard = tgbotapi.NewReplyKeyboard(
 		tgbotapi.NewKeyboardButtonRow(
 			tgbotapi.NewKeyboardButton(addByVkNameButton),
@@ -99,6 +109,13 @@ var (
 			tgbotapi.NewKeyboardButton(mainButton),
 		),
 	)
+
+	logoutOfTheBotKeyboard = tgbotapi.NewReplyKeyboard(
+		tgbotapi.NewKeyboardButtonRow(
+			tgbotapi.NewKeyboardButton(yesLogoutOfTheBotButton),
+			tgbotapi.NewKeyboardButton(noLogoutOfTheBotButton),
+		),
+	)
 )
 
 // клавиатура для "Главная"
@@ -113,6 +130,7 @@ func (s *Server) getMainKeyboard(isToken bool) (*tgbotapi.ReplyKeyboardMarkup, e
 			),
 			tgbotapi.NewKeyboardButtonRow(
 				tgbotapi.NewKeyboardButton(infoAboutBot),
+				tgbotapi.NewKeyboardButton(logoutOfTheBotButton),
 			),
 		)
 	} else {

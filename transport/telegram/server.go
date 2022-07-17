@@ -8,7 +8,7 @@ import (
 	"tgbot_surveillance/internal/domain/tracked"
 	trackedsvc "tgbot_surveillance/internal/domain/tracked"
 	"tgbot_surveillance/internal/domain/user"
-	"tgbot_surveillance/internal/domain/userVk"
+	govk "tgbot_surveillance/pkg/go-vk"
 	"time"
 
 	"github.com/pkg/errors"
@@ -42,7 +42,6 @@ func (t *TypeMessage) ChangeTypeMessage(typeMes string) {
 type Services struct {
 	UserService    user.Service
 	TrackedService tracked.Service
-	UserVkService  userVk.Service
 }
 
 type Server struct {
@@ -78,18 +77,6 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 		return errors.Wrap(err, "get updates chan")
 	}
 
-	go func() {
-		for {
-			fmt.Println("GOGOGO")
-			err := s.runNotifications()
-			if err != nil {
-				s.logger.Errorf("%+v", err)
-				return
-			}
-			time.Sleep(time.Duration(cfg.NotificationDuration) * time.Minute)
-		}
-	}()
-
 	doneC := make(chan struct{})
 	go func() {
 		defer close(doneC)
@@ -102,6 +89,9 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 			case update := <-updates:
 				s.wg.Add(1)
 				go s.proccessUpdate(update, cfg)
+			case <-time.After(20 * time.Minute):
+				s.wg.Add(1)
+				go s.runNotifications()
 			}
 		}
 	}()
@@ -142,6 +132,82 @@ func (s *Server) proccessUpdate(update tgbotapi.Update, cfg *config.Config) {
 		}
 		s.logger.WithFields(fields).Infof("New message %v", update.Message.From.String())
 	}
+}
+
+func (s Server) runNotifications() {
+	defer s.wg.Done()
+
+	s.logger.Info("Start notifications...")
+	trackeds, err := s.services.TrackedService.GetTrackeds(context.Background())
+	if err != nil {
+		s.logger.Errorf("%+v", err)
+		return
+	}
+
+	for key, users := range trackeds {
+		usr, err := s.services.UserService.GetUserByTgID(context.Background(), user.TelegramID(users[0].TgID))
+
+		if err != nil {
+			s.logger.Errorf("%+v", err)
+			return
+		}
+
+		apiVk, _ := govk.NewApiClient(*usr.Token)
+		params := govk.FriendsGetParams{
+			UserID: int64(key),
+			Fields: "id, first_name, last_name",
+		}
+		newListFriends, err := apiVk.FriendsGet(params)
+		if err != nil {
+			text := fmt.Sprintf("%s, %s", usr.Username, "У вас проблема с токеном, обновите его\nЛибо покиньте бота, чтоб не получать уведомления.")
+			m := tgbotapi.NewMessage(int64(usr.TgID), text)
+			m.ReplyMarkup, err = s.getMainKeyboard(true)
+			if err != nil {
+				s.logger.Errorf("%+v", err)
+				return
+			}
+			if _, err = s.tg.Send(m); err != nil {
+				s.logger.Errorf("%+v", err)
+				return
+			}
+			s.logger.Errorf("%+v", err)
+			return
+		}
+		prevListFriends, err := s.services.TrackedService.GetPrevFriends(
+			context.Background(),
+			&tracked.TrackedInfo{
+				ID: users[0].ID,
+			},
+		)
+		if err != nil {
+			s.logger.Errorf("%+v", err)
+			return
+		}
+
+		addedFriends, deletedFriends, err := s.checkDeletedAndNewFriends(usr, newListFriends, prevListFriends, &tracked.TrackedInfo{ID: users[0].ID})
+		if err != nil {
+			s.logger.Errorf("%+v", err)
+			return
+		}
+		text := s.getTextAboutAddedAndDeletedFriends(addedFriends, deletedFriends)
+
+		if text != "Пока изменений нет" {
+			for _, u := range users {
+				text1 := fmt.Sprintf("Отслеживаемый: %s \n%s", users[0].FirstName+" "+users[0].LastName, text)
+				m := tgbotapi.NewMessage(int64(u.TgID), text1)
+				if _, err = s.tg.Send(m); err != nil {
+					s.logger.Errorf("%+v", err)
+					return
+				}
+			}
+			err = s.services.TrackedService.AddInHistory(context.Background(), &tracked.TrackedInfo{ID: users[0].ID}, addedFriends, deletedFriends)
+			if err != nil {
+				s.logger.Errorf("%+v", err)
+				return
+			}
+		}
+	}
+	s.logger.Info("Start notifications...")
 }
 
 func (s *Server) Stop() {

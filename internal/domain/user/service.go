@@ -9,6 +9,7 @@ type Service interface {
 	Get(ctx context.Context, opts ...GetOptFunc) ([]*User, error)
 	Update(ctx context.Context, user *User) error
 	GetUserByTgID(ctx context.Context, tgID TelegramID) (*User, error)
+	Delete(ctx context.Context, user *User) error
 }
 
 type service struct {
@@ -33,4 +34,8 @@ func (s service) Update(ctx context.Context, user *User) error {
 
 func (s service) GetUserByTgID(ctx context.Context, tgID TelegramID) (*User, error) {
 	return s.store.GetUserByTgID(ctx, tgID)
+}
+
+func (s service) Delete(ctx context.Context, user *User) error {
+	return s.store.Delete(ctx, user)
 }
