@@ -87,10 +87,8 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 				s.wg.Wait()
 				return
 			case update := <-updates:
-				s.wg.Add(1)
 				go s.proccessUpdate(update, cfg)
-			case <-time.After(20 * time.Minute):
-				s.wg.Add(1)
+			case <-time.After(10 * time.Minute):
 				go s.runNotifications()
 			}
 		}
@@ -102,6 +100,7 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 }
 
 func (s *Server) proccessUpdate(update tgbotapi.Update, cfg *config.Config) {
+	s.wg.Add(1)
 	defer s.wg.Done()
 
 	var err error
@@ -135,6 +134,7 @@ func (s *Server) proccessUpdate(update tgbotapi.Update, cfg *config.Config) {
 }
 
 func (s Server) runNotifications() {
+	s.wg.Add(1)
 	defer s.wg.Done()
 
 	s.logger.Info("Start notifications...")

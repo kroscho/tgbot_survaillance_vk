@@ -233,6 +233,8 @@ func (s Server) isMessageButton(updateText string) bool {
 		return true
 	case noLogoutOfTheBotButton:
 		return true
+	case likesButton:
+		return true
 	default:
 		return false
 	}

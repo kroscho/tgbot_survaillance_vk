@@ -104,7 +104,10 @@ func (s *Server) messageHandler(update *tgbotapi.Message, cfg *config.Config) er
 
 		case mySubscriptionButton:
 			//msg.Text = usr.GetSubscriptionMsg()
-			msg.Text = "Эта часть еще не реализована("
+			msg.Text = "Эта часть еще разрабатывается"
+
+		case likesButton:
+			msg.Text = " Эта часть еще разрабатывается.\n Совсем скоро вы сможете отслеживать еще и лайки."
 
 		case contactsButton:
 			msg.Text = fmt.Sprintf("Введите /start для отображения меню\n\n" +

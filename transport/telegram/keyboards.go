@@ -38,7 +38,7 @@ const (
 	DELETED_FRIENDS               = "deleted friends"
 	deletedFromSurvaillanceButton = "Убрать из отслеживаемых"
 	HELP_TRACKED                  = "help tracked"
-	LIKES                         = "likes"
+	likesButton                   = "likes"
 	CHANGE_TYPE_SURVEILLANCE      = "change type surveillance"
 	ADD_BY_NAME1                  = "add by name"
 	ADD_BY_ID1                    = "add by id"
