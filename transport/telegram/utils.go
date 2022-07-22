@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"tgbot_surveillance/internal/domain/tracked"
+	trackedsvc "tgbot_surveillance/internal/domain/tracked"
 	"tgbot_surveillance/internal/domain/user"
 	govk "tgbot_surveillance/pkg/go-vk"
 	vkmodels "tgbot_surveillance/pkg/go-vk/models"
@@ -104,7 +105,7 @@ func CheckExistInList(x int64, list []int64) bool {
 }
 
 // получить текст о добавленных и удаленных друзьях
-func (s Server) getTextAboutAddedAndDeletedFriends(addedFriendsIds map[int64]vkmodels.User, deletedFriendsIds map[int64]vkmodels.User) string {
+func (s Server) getTextAboutAddedAndDeletedFriends(addedFriendsIds map[int64]vkmodels.User, deletedFriendsIds map[int64]vkmodels.User, tracked trackedsvc.UserTrackedInfo) string {
 	text := ""
 	if len(addedFriendsIds) == 0 && len(deletedFriendsIds) == 0 {
 		text += "Пока изменений нет"
@@ -114,12 +115,14 @@ func (s Server) getTextAboutAddedAndDeletedFriends(addedFriendsIds map[int64]vkm
 		}
 		for _, addedFriend := range addedFriendsIds {
 			text += "Новый друг: " + addedFriend.FirstName + " " + addedFriend.LastName + "\n"
+			s.logger.Infof("Отслеживаемый: %s - Новый друг: %s", tracked.FirstName+" "+tracked.LastName, addedFriend.FirstName+" "+addedFriend.LastName)
 		}
 		if len(deletedFriendsIds) != 0 {
 			text += "Удаленные друзья:\n"
 		}
 		for _, deletedFriend := range deletedFriendsIds {
 			text += "Удаленный друг: " + deletedFriend.FirstName + " " + deletedFriend.LastName + "\n"
+			s.logger.Infof("Отслеживаемый: %s - Удаленный друг: %s", tracked.FirstName+" "+tracked.LastName, deletedFriend.FirstName+" "+deletedFriend.LastName)
 		}
 	}
 	return text

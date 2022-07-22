@@ -67,4 +67,5 @@ type UserVK struct {
 
 var (
 	ErrTrackedAlreadyExist = errors.New("tracked already exist")
+	ErrTrackedToMach       = errors.New("maximum number of tracked 6")
 )

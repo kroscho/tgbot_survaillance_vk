@@ -154,6 +154,9 @@ func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels
 	if err != nil {
 		return errors.Wrap(err, "callback, get trackeds")
 	}
+	if len(trackeds) == 8 {
+		return trackedsvc.ErrTrackedToMach
+	}
 	isExist := false
 	for _, tt := range trackeds {
 		if tt.UserVK.UID == trackedsvc.VkID(trackedAdd.UID) {
@@ -170,6 +173,7 @@ func (s store) Create(ctx context.Context, user *user.User, trackedAdd *vkmodels
 		tracked_id := 0
 
 		tr, isExist := trackeds[trackedsvc.VkID(trackedAdd.UID)]
+		fmt.Println("isExist: ", isExist)
 		if isExist {
 			tracked_id = int(tr[0].ID)
 		} else {
@@ -414,8 +418,6 @@ func (s store) CheckUsersAboutTracked(ctx context.Context, user *user.User, trac
 }
 
 func (s store) DeleteUserFromTracked(ctx context.Context, user *user.User, tracked *trackedsvc.TrackedInfo) error {
-
-	fmt.Println("DELETE: ", user.ID, tracked.ID)
 
 	query := fmt.Sprintf("delete from %s where user_id=%d and tracked_id=%d", s.tableUserTracked, user.ID, tracked.ID)
 

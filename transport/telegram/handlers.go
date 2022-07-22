@@ -474,6 +474,9 @@ func (s *Server) addInTrackedByVkId(usr *user.User, msg *tgbotapi.MessageConfig,
 		if err == trackedsvc.ErrTrackedAlreadyExist {
 			msg.Text = "Данный пользователь уже есть в ваших отслеживаемых!"
 			msg.ReplyMarkup = addToTrackedKeyboard
+		} else if err == trackedsvc.ErrTrackedToMach {
+			msg.Text = "Максимум можно добавить 8 человек в отслеживаемые!"
+			msg.ReplyMarkup = addToTrackedKeyboard
 		} else {
 			return errors.Wrap(err, "callback, api vk")
 		}
@@ -556,7 +559,7 @@ func (s *Server) getNewInfoAboutFriendsButton(usr *user.User, msg *tgbotapi.Mess
 		return errors.Wrap(err, "message, check lists friends")
 	}
 	text := fmt.Sprintf("Текущий отслеживаемый: %s \n", s.curTracked.UserVK.FirstName+" "+s.curTracked.UserVK.LastName)
-	text += s.getTextAboutAddedAndDeletedFriends(addedFriends, deletedFriends)
+	text += s.getTextAboutAddedAndDeletedFriends(addedFriends, deletedFriends, trackedsvc.UserTrackedInfo{FirstName: s.curTracked.UserVK.FirstName, LastName: s.curTracked.UserVK.LastName})
 	msg.Text = text
 	msg.ReplyMarkup = trackedKeyboard
 

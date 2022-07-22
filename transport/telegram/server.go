@@ -77,6 +77,8 @@ func (s *Server) Run(ctx context.Context, cfg *config.Config) error {
 		return errors.Wrap(err, "get updates chan")
 	}
 
+	go s.runNotifications()
+
 	doneC := make(chan struct{})
 	go func() {
 		defer close(doneC)
@@ -189,7 +191,7 @@ func (s Server) runNotifications() {
 			s.logger.Errorf("%+v", err)
 			return
 		}
-		text := s.getTextAboutAddedAndDeletedFriends(addedFriends, deletedFriends)
+		text := s.getTextAboutAddedAndDeletedFriends(addedFriends, deletedFriends, *users[0])
 
 		if text != "Пока изменений нет" {
 			for _, u := range users {
