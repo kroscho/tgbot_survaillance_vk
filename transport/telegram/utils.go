@@ -84,7 +84,7 @@ func (s Server) checkDeletedAndNewFriends(user *user.User, newListFriends map[in
 				}
 				if friend != nil {
 					deletedFriendsIds[int64(friend.UID)] = *friend
-					err = s.services.TrackedService.DeleteUserFromPrevFriends(context.Background(), friend, s.curTracked)
+					err = s.services.TrackedService.DeleteUserFromPrevFriends(context.Background(), friend, tracked)
 					if err != nil {
 						return addedFriendsIds, deletedFriendsIds, errors.Wrap(err, "delete friend")
 					}

@@ -161,18 +161,22 @@ func (s Server) runNotifications() {
 		}
 		newListFriends, err := apiVk.FriendsGet(params)
 		if err != nil {
+			/*
+				text := fmt.Sprintf("%s, %s", usr.Username, "У вас проблема с токеном, обновите его\nЛибо покиньте бота, чтоб не получать уведомления.")
+				m := tgbotapi.NewMessage(int64(usr.TgID), text)
+				m.ReplyMarkup, err = s.getMainKeyboard(true)
+				if err != nil {
+					s.logger.Errorf("%+v", err)
+					return
+				}
+				if _, err = s.tg.Send(m); err != nil {
+					s.logger.Errorf("%+v", err)
+					return
+				}
+				s.logger.Errorf("%+v", err)
+			*/
 			text := fmt.Sprintf("%s, %s", usr.Username, "У вас проблема с токеном, обновите его\nЛибо покиньте бота, чтоб не получать уведомления.")
-			m := tgbotapi.NewMessage(int64(usr.TgID), text)
-			m.ReplyMarkup, err = s.getMainKeyboard(true)
-			if err != nil {
-				s.logger.Errorf("%+v", err)
-				return
-			}
-			if _, err = s.tg.Send(m); err != nil {
-				s.logger.Errorf("%+v", err)
-				return
-			}
-			s.logger.Errorf("%+v", err)
+			s.logger.Info(text)
 			return
 		}
 		prevListFriends, err := s.services.TrackedService.GetPrevFriends(
